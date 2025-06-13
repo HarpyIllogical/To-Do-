@@ -129,17 +129,50 @@
         .edit-modal {
             animation: slideIn 0.3s ease-out;
         }
+        .sort-btn.active {
+            background-color: #6366f1;
+            color: white;
+        }
+        .custom-date-inputs {
+            display: none;
+        }
+        .custom-view .custom-date-inputs {
+            display: flex;
+        }
+        .user-actions {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
     </style>
 </head>
 <body class="min-h-screen py-8 px-4">
     <!-- Confetti Canvas -->
     <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
     
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-4xl mx-auto relative">
+        <!-- User Actions -->
+        <div class="user-actions">
+            <div id="user-info" class="hidden">
+                <span class="text-gray-700 font-medium" id="username-display"></span>
+                <button id="logout-btn" class="ml-3 px-3 py-1 bg-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-300">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+            </div>
+            <div id="login-section" class="flex space-x-2">
+                <button id="login-btn" class="px-3 py-1 bg-primary text-white rounded-lg text-sm font-medium">
+                    <i class="fas fa-sign-in-alt mr-1"></i> Login
+                </button>
+                <button id="signup-btn" class="px-3 py-1 bg-secondary text-white rounded-lg text-sm font-medium">
+                    <i class="fas fa-user-plus mr-1"></i> Sign Up
+                </button>
+            </div>
+        </div>
+        
         <!-- Header -->
         <header class="text-center mb-10">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">TaskFlow</h1>
-            <p class="text-gray-600">Modern Task Management with Real-Time Tracking</p>
+            <p class="text-gray-600">Modern Task Management with Cross-Device Sync</p>
             
             <!-- Current Time Display -->
             <div class="time-display inline-block px-6 py-3 mt-4">
@@ -166,8 +199,24 @@
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-semibold text-gray-700">Your Tasks</h2>
                     <div class="flex space-x-2">
-                        <button id="today-toggle" class="px-3 py-1 bg-primary text-white rounded-lg text-sm font-medium">Today</button>
-                        <button id="upcoming-toggle" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">Upcoming</button>
+                        <div class="relative">
+                            <select id="view-select" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium appearance-none pr-8">
+                                <option value="today">Today</option>
+                                <option value="tomorrow">Next Day</option>
+                                <option value="week">Next Week</option>
+                                <option value="history">Entire History</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                        <div id="custom-date-inputs" class="custom-date-inputs space-x-2">
+                            <input type="date" id="custom-start" class="px-2 py-1 border border-gray-300 rounded text-sm">
+                            <span class="text-gray-600">to</span>
+                            <input type="date" id="custom-end" class="px-2 py-1 border border-gray-300 rounded text-sm">
+                            <button id="apply-custom" class="px-2 py-1 bg-primary text-white rounded text-sm">Apply</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -276,6 +325,10 @@
                                 <i class="fas fa-lightbulb text-yellow-400 mt-1 mr-2"></i>
                                 <span>Check off tasks to trigger celebration effects</span>
                             </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-lightbulb text-yellow-400 mt-1 mr-2"></i>
+                                <span>Sign up to sync tasks across devices</span>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -303,6 +356,11 @@
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
+                        <label class="block text-gray-700 mb-1">Date</label>
+                        <input type="date" id="task-date" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    
+                    <div>
                         <label class="block text-gray-700 mb-1">Start Time</label>
                         <input type="time" id="task-start" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
                     </div>
@@ -321,10 +379,64 @@
         </div>
     </div>
     
+    <!-- Login/Signup Modal -->
+    <div id="auth-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="edit-modal bg-white rounded-xl w-full max-w-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="auth-modal-title" class="text-xl font-bold text-gray-800">Login to TaskFlow</h3>
+                <button id="close-auth-modal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="auth-form" class="space-y-4">
+                <div id="signup-fields" class="hidden">
+                    <div>
+                        <label class="block text-gray-700 mb-1">Full Name</label>
+                        <input type="text" id="full-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 mb-1">Username</label>
+                    <input type="text" id="auth-username" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 mb-1">Password</label>
+                    <input type="password" id="auth-password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                
+                <div id="auth-error" class="text-red-500 text-sm hidden">
+                    Invalid credentials. Please try again.
+                </div>
+                
+                <div class="pt-4 flex justify-between">
+                    <button type="button" id="switch-auth-mode" class="text-primary hover:underline">
+                        <span id="switch-text">Create new account</span>
+                    </button>
+                    <div class="space-x-3">
+                        <button type="button" id="cancel-auth" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                        <button type="submit" id="auth-submit" class="px-4 py-2 bg-primary text-white rounded-lg font-medium">Login</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <script>
+        // User Authentication
+        const AUTH_MODE = {
+            LOGIN: 'login',
+            SIGNUP: 'signup'
+        };
+        
+        let currentAuthMode = AUTH_MODE.LOGIN;
+        let currentUser = localStorage.getItem('currentUser') ? 
+            JSON.parse(localStorage.getItem('currentUser')) : null;
+        
         // Task Management
-        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-        let editingTaskId = null;
+        let tasks = [];
         
         // DOM Elements
         const tasksContainer = document.getElementById('tasks-container');
@@ -339,23 +451,45 @@
         const taskForm = document.getElementById('task-form');
         const modalTitle = document.getElementById('modal-title');
         const taskTitleInput = document.getElementById('task-title');
+        const taskDateInput = document.getElementById('task-date');
         const taskStartInput = document.getElementById('task-start');
         const taskEndInput = document.getElementById('task-end');
         const taskIdInput = document.getElementById('task-id');
         const massTaskInput = document.getElementById('mass-task-input');
         const processMassTasksBtn = document.getElementById('process-mass-tasks');
-        const todayToggle = document.getElementById('today-toggle');
-        const upcomingToggle = document.getElementById('upcoming-toggle');
+        const viewSelect = document.getElementById('view-select');
+        const customDateInputs = document.getElementById('custom-date-inputs');
+        const customStartInput = document.getElementById('custom-start');
+        const customEndInput = document.getElementById('custom-end');
+        const applyCustomBtn = document.getElementById('apply-custom');
         const totalTasksElement = document.getElementById('total-tasks');
         const completedTasksElement = document.getElementById('completed-tasks');
         const pendingTasksElement = document.getElementById('pending-tasks');
         
+        // Auth Elements
+        const userInfo = document.getElementById('user-info');
+        const usernameDisplay = document.getElementById('username-display');
+        const logoutBtn = document.getElementById('logout-btn');
+        const loginSection = document.getElementById('login-section');
+        const loginBtn = document.getElementById('login-btn');
+        const signupBtn = document.getElementById('signup-btn');
+        const authModal = document.getElementById('auth-modal');
+        const authModalTitle = document.getElementById('auth-modal-title');
+        const closeAuthModal = document.getElementById('close-auth-modal');
+        const cancelAuth = document.getElementById('cancel-auth');
+        const authForm = document.getElementById('auth-form');
+        const signupFields = document.getElementById('signup-fields');
+        const authUsername = document.getElementById('auth-username');
+        const authPassword = document.getElementById('auth-password');
+        const switchAuthMode = document.getElementById('switch-auth-mode');
+        const switchText = document.getElementById('switch-text');
+        const authSubmit = document.getElementById('auth-submit');
+        const authError = document.getElementById('auth-error');
+        
         // Initialize the app
         function init() {
-            renderTasks();
             updateClock();
             setInterval(updateClock, 1000);
-            updateStats();
             
             // Set up event listeners
             addTaskBtn.addEventListener('click', () => openTaskModal());
@@ -363,11 +497,189 @@
             cancelModal.addEventListener('click', () => closeTaskModal());
             taskForm.addEventListener('submit', handleTaskFormSubmit);
             processMassTasksBtn.addEventListener('click', processMassTasks);
-            todayToggle.addEventListener('click', () => setView('today'));
-            upcomingToggle.addEventListener('click', () => setView('upcoming'));
+            viewSelect.addEventListener('change', handleViewChange);
+            applyCustomBtn.addEventListener('click', () => renderTasks());
             
-            // Set default view
-            setView('today');
+            // Set default date for task form
+            const today = new Date();
+            taskDateInput.valueAsDate = today;
+            
+            // Auth event listeners
+            loginBtn.addEventListener('click', () => openAuthModal(AUTH_MODE.LOGIN));
+            signupBtn.addEventListener('click', () => openAuthModal(AUTH_MODE.SIGNUP));
+            closeAuthModal.addEventListener('click', () => closeAuthModalFunc());
+            cancelAuth.addEventListener('click', () => closeAuthModalFunc());
+            authForm.addEventListener('submit', handleAuthFormSubmit);
+            switchAuthMode.addEventListener('click', toggleAuthMode);
+            logoutBtn.addEventListener('click', logout);
+            
+            // Set default custom dates
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            customStartInput.valueAsDate = new Date();
+            customEndInput.valueAsDate = tomorrow;
+            
+            // Check if user is logged in
+            if (currentUser) {
+                loadUserData();
+            } else {
+                updateUIForAuthState();
+            }
+        }
+        
+        // User Authentication Functions
+        function openAuthModal(mode) {
+            currentAuthMode = mode;
+            authError.classList.add('hidden');
+            
+            if (mode === AUTH_MODE.LOGIN) {
+                authModalTitle.textContent = 'Login to TaskFlow';
+                signupFields.classList.add('hidden');
+                switchText.textContent = 'Create new account';
+                authSubmit.textContent = 'Login';
+            } else {
+                authModalTitle.textContent = 'Create Account';
+                signupFields.classList.remove('hidden');
+                switchText.textContent = 'Already have an account?';
+                authSubmit.textContent = 'Sign Up';
+            }
+            
+            authModal.classList.remove('hidden');
+        }
+        
+        function closeAuthModalFunc() {
+            authModal.classList.add('hidden');
+            authForm.reset();
+        }
+        
+        function toggleAuthMode() {
+            if (currentAuthMode === AUTH_MODE.LOGIN) {
+                openAuthModal(AUTH_MODE.SIGNUP);
+            } else {
+                openAuthModal(AUTH_MODE.LOGIN);
+            }
+        }
+        
+        function handleAuthFormSubmit(e) {
+            e.preventDefault();
+            
+            const username = authUsername.value.trim();
+            const password = authPassword.value.trim();
+            
+            if (!username || !password) {
+                authError.textContent = 'Please fill in all fields';
+                authError.classList.remove('hidden');
+                return;
+            }
+            
+            if (currentAuthMode === AUTH_MODE.LOGIN) {
+                loginUser(username, password);
+            } else {
+                signupUser(username, password);
+            }
+        }
+        
+        function signupUser(username, password) {
+            // Check if user already exists
+            const existingUser = localStorage.getItem(`user_${username}`);
+            if (existingUser) {
+                authError.textContent = 'Username already exists';
+                authError.classList.remove('hidden');
+                return;
+            }
+            
+            // Create user
+            const user = {
+                username,
+                password,
+                tasks: []
+            };
+            
+            localStorage.setItem(`user_${username}`, JSON.stringify(user));
+            
+            // Log in the new user
+            loginUser(username, password);
+        }
+        
+        function loginUser(username, password) {
+            const userData = localStorage.getItem(`user_${username}`);
+            
+            if (!userData) {
+                authError.textContent = 'User not found';
+                authError.classList.remove('hidden');
+                return;
+            }
+            
+            const user = JSON.parse(userData);
+            
+            if (user.password !== password) {
+                authError.textContent = 'Invalid password';
+                authError.classList.remove('hidden');
+                return;
+            }
+            
+            // Set current user
+            currentUser = {
+                username: user.username
+            };
+            
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            // Load user tasks
+            tasks = user.tasks || [];
+            
+            // Update UI
+            closeAuthModalFunc();
+            updateUIForAuthState();
+            renderTasks();
+            updateStats();
+        }
+        
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            tasks = [];
+            updateUIForAuthState();
+            renderTasks();
+            updateStats();
+        }
+        
+        function updateUIForAuthState() {
+            if (currentUser) {
+                userInfo.classList.remove('hidden');
+                loginSection.classList.add('hidden');
+                usernameDisplay.textContent = currentUser.username;
+                addTaskBtn.disabled = false;
+            } else {
+                userInfo.classList.add('hidden');
+                loginSection.classList.remove('hidden');
+                usernameDisplay.textContent = '';
+                addTaskBtn.disabled = true;
+            }
+        }
+        
+        function saveUserData() {
+            if (!currentUser) return;
+            
+            const userData = localStorage.getItem(`user_${currentUser.username}`);
+            if (userData) {
+                const user = JSON.parse(userData);
+                user.tasks = tasks;
+                localStorage.setItem(`user_${currentUser.username}`, JSON.stringify(user));
+            }
+        }
+        
+        function loadUserData() {
+            if (!currentUser) return;
+            
+            const userData = localStorage.getItem(`user_${currentUser.username}`);
+            if (userData) {
+                const user = JSON.parse(userData);
+                tasks = user.tasks || [];
+                updateUIForAuthState();
+                renderTasks();
+                updateStats();
+            }
         }
         
         // Update clock and date
@@ -390,24 +702,30 @@
             updateStats();
         }
         
-        // Set view mode
-        function setView(mode) {
-            if (mode === 'today') {
-                todayToggle.classList.remove('bg-gray-200', 'text-gray-700');
-                todayToggle.classList.add('bg-primary', 'text-white');
-                upcomingToggle.classList.remove('bg-primary', 'text-white');
-                upcomingToggle.classList.add('bg-gray-200', 'text-gray-700');
+        // Handle view change
+        function handleViewChange() {
+            const view = viewSelect.value;
+            
+            if (view === 'custom') {
+                customDateInputs.classList.add('custom-view');
             } else {
-                upcomingToggle.classList.remove('bg-gray-200', 'text-gray-700');
-                upcomingToggle.classList.add('bg-primary', 'text-white');
-                todayToggle.classList.remove('bg-primary', 'text-white');
-                todayToggle.classList.add('bg-gray-200', 'text-gray-700');
+                customDateInputs.classList.remove('custom-view');
+                renderTasks();
             }
-            renderTasks();
         }
         
         // Render tasks to the DOM
         function renderTasks() {
+            if (!currentUser) {
+                tasksContainer.innerHTML = `
+                    <div class="text-center py-10">
+                        <i class="fas fa-user-lock text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500">Please log in to view your tasks</p>
+                    </div>
+                `;
+                return;
+            }
+            
             if (tasks.length === 0) {
                 tasksContainer.innerHTML = `
                     <div class="text-center py-10">
@@ -419,21 +737,59 @@
             }
             
             // Filter tasks based on view mode
-            const isTodayView = todayToggle.classList.contains('bg-primary');
+            const view = viewSelect.value;
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             
-            const filteredTasks = isTodayView 
-                ? tasks.filter(task => {
+            let filteredTasks = [...tasks];
+            
+            if (view === 'today') {
+                filteredTasks = tasks.filter(task => {
                     const taskDate = new Date(task.startTime);
                     return taskDate >= today && taskDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
-                })
-                : tasks;
+                });
+            } else if (view === 'tomorrow') {
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                
+                filteredTasks = tasks.filter(task => {
+                    const taskDate = new Date(task.startTime);
+                    return taskDate >= tomorrow && taskDate < new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000);
+                });
+            } else if (view === 'week') {
+                const nextWeek = new Date(today);
+                nextWeek.setDate(nextWeek.getDate() + 7);
+                
+                filteredTasks = tasks.filter(task => {
+                    const taskDate = new Date(task.startTime);
+                    return taskDate >= today && taskDate < nextWeek;
+                });
+            } else if (view === 'custom') {
+                const startDate = new Date(customStartInput.value);
+                const endDate = new Date(customEndInput.value);
+                endDate.setDate(endDate.getDate() + 1); // Include the entire end day
+                
+                filteredTasks = tasks.filter(task => {
+                    const taskDate = new Date(task.startTime);
+                    return taskDate >= startDate && taskDate < endDate;
+                });
+            }
+            // "history" view shows all tasks - no filter needed
             
             // Sort tasks by start time
             filteredTasks.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
             
             tasksContainer.innerHTML = '';
+            
+            if (filteredTasks.length === 0) {
+                tasksContainer.innerHTML = `
+                    <div class="text-center py-10">
+                        <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500">No tasks in this view</p>
+                    </div>
+                `;
+                return;
+            }
             
             filteredTasks.forEach(task => {
                 const taskElement = createTaskElement(task);
@@ -444,6 +800,10 @@
         // Create a task element
         function createTaskElement(task) {
             const taskDate = new Date(task.startTime);
+            const dateString = taskDate.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric'
+            });
             const startTime = formatTime(taskDate);
             const endTime = formatTime(new Date(task.endTime));
             
@@ -504,6 +864,9 @@
                             <span class="${statusClass} task-status">${task.done ? 'Completed' : statusClass.split('-')[1]}</span>
                         </div>
                         <div class="mt-2 flex flex-wrap items-center gap-2">
+                            <span class="text-sm text-gray-600">
+                                <i class="far fa-calendar mr-1"></i> ${dateString}
+                            </span>
                             <span class="text-sm text-gray-600">
                                 <i class="far fa-clock mr-1"></i> ${startTime} - ${endTime}
                             </span>
@@ -649,7 +1012,7 @@
                     triggerConfetti();
                 }
                 
-                saveTasks();
+                saveUserData();
                 renderTasks();
                 updateCurrentTask();
                 updateStats();
@@ -660,7 +1023,7 @@
         function deleteTask(id) {
             if (confirm('Are you sure you want to delete this task?')) {
                 tasks = tasks.filter(task => task.id !== id);
-                saveTasks();
+                saveUserData();
                 renderTasks();
                 updateCurrentTask();
                 updateStats();
@@ -669,13 +1032,22 @@
         
         // Open task modal for adding or editing
         function openTaskModal(taskId = null) {
+            if (!currentUser) {
+                alert('Please log in to add tasks');
+                return;
+            }
+            
             editingTaskId = taskId;
+            
+            const now = new Date();
+            taskDateInput.valueAsDate = now;
             
             if (taskId) {
                 // Editing existing task
                 const task = tasks.find(t => t.id === taskId);
                 if (task) {
                     taskTitleInput.value = task.title;
+                    taskDateInput.valueAsDate = new Date(task.startTime);
                     taskStartInput.value = formatTime(new Date(task.startTime));
                     taskEndInput.value = formatTime(new Date(task.endTime));
                     taskIdInput.value = task.id;
@@ -684,8 +1056,13 @@
             } else {
                 // Adding new task
                 taskTitleInput.value = '';
-                taskStartInput.value = '';
-                taskEndInput.value = '';
+                taskDateInput.valueAsDate = now;
+                taskStartInput.value = formatTime(now);
+                
+                // Default end time to 1 hour from now
+                const endTime = new Date(now.getTime() + 60 * 60000);
+                taskEndInput.value = formatTime(endTime);
+                
                 taskIdInput.value = '';
                 modalTitle.textContent = 'Add New Task';
             }
@@ -704,23 +1081,18 @@
             e.preventDefault();
             
             const title = taskTitleInput.value.trim();
+            const date = taskDateInput.value;
             const startTime = taskStartInput.value;
             const endTime = taskEndInput.value;
             
-            if (!title || !startTime || !endTime) {
+            if (!title || !date || !startTime || !endTime) {
                 alert('Please fill in all fields');
                 return;
             }
             
-            // Create date objects for times (using today as the date)
-            const now = new Date();
-            const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const [startHours, startMinutes] = startTime.split(':').map(Number);
-            startDate.setHours(startHours, startMinutes);
-            
-            const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const [endHours, endMinutes] = endTime.split(':').map(Number);
-            endDate.setHours(endHours, endMinutes);
+            // Create date objects
+            const startDate = new Date(`${date}T${startTime}`);
+            const endDate = new Date(`${date}T${endTime}`);
             
             // Validate times
             if (endDate <= startDate) {
@@ -752,7 +1124,7 @@
                 tasks.push(newTask);
             }
             
-            saveTasks();
+            saveUserData();
             renderTasks();
             updateCurrentTask();
             updateStats();
@@ -761,11 +1133,17 @@
         
         // Process mass task input
         function processMassTasks() {
+            if (!currentUser) {
+                alert('Please log in to add tasks');
+                return;
+            }
+            
             const input = massTaskInput.value.trim();
             if (!input) return;
             
             const lines = input.split('\n');
             let currentDate = null;
+            let taskCount = 0;
             
             for (const line of lines) {
                 const trimmedLine = line.trim();
@@ -799,6 +1177,12 @@
                     const endDate = new Date(currentDate);
                     endDate.setHours(endHour, endMinute);
                     
+                    // Validate times
+                    if (endDate <= startDate) {
+                        alert(`Invalid time range for task: ${title}`);
+                        continue;
+                    }
+                    
                     // Add the task
                     tasks.push({
                         id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -807,16 +1191,22 @@
                         endTime: endDate.toISOString(),
                         done: false
                     });
+                    
+                    taskCount++;
                 }
             }
             
-            saveTasks();
-            renderTasks();
-            updateStats();
-            massTaskInput.value = '';
-            
-            // Show success message
-            alert(`${tasks.length} tasks added successfully!`);
+            if (taskCount > 0) {
+                saveUserData();
+                renderTasks();
+                updateStats();
+                massTaskInput.value = '';
+                
+                // Show success message
+                alert(`${taskCount} tasks added successfully!`);
+            } else {
+                alert('No valid tasks found in the input');
+            }
         }
         
         // Update stats counters
@@ -828,11 +1218,6 @@
             totalTasksElement.textContent = total;
             completedTasksElement.textContent = completed;
             pendingTasksElement.textContent = pending;
-        }
-        
-        // Save tasks to localStorage
-        function saveTasks() {
-            localStorage.setItem('tasks', JSON.stringify(tasks));
         }
         
         // Trigger confetti effect
